@@ -1,4 +1,4 @@
-use lambda_http::{lambda, Body, IntoResponse, Request};
+use lambda_http::{lambda, Body, Request, Response};
 use lambda_runtime::{error::HandlerError, Context};
 use serde_derive::Deserialize;
 use serde_json;
@@ -146,19 +146,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> {
+fn handler(req: Request, _: Context) -> Result<Response<Vec<u8>>, HandlerError> {
     let body_str: &String = match req.body() {
         Body::Text(text) => text,
         _ => return Err(HandlerError::from("Invalid request body")),
     };
-    println!("{}", body_str);
 
     let maze_req: MazeRequest = serde_json::from_str(body_str)?;
 
-    println!("{:?}", maze_req);
+    let data = match maze::generate(maze_req.to_maze_args()).expect("Failure generating maze") {
+        maze::Output::BIN(bytes) => bytes,
+        _ => return Err(HandlerError::from("Internal server error.")),
+    };
 
-    match maze::generate(maze_req.to_maze_args()).expect("Failure generating maze") {
-        maze::Output::BIN(bytes) => Ok(bytes),
-        _ => Err(HandlerError::from("Unsupported output type")),
-    }
+    Ok(Response::builder()
+        .status(200)
+        .header("access-control-allow-origin", "*")
+        .body(data)
+        .unwrap())
 }
