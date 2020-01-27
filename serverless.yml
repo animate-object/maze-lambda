@@ -1,0 +1,17 @@
+service: maze-generator
+provider:
+  name: aws
+  runtime: rust
+  memorySize: 128
+plugins:
+  - serverless-rust
+package:
+  individually: true
+functions:
+  generate:
+    handler: maze-gen
+    events:
+      - http:
+          path: "/"
+          method: POST
+          cors: true
